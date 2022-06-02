@@ -1,26 +1,3 @@
-// 'Scene',
-//     'MediaContainer',
-//     'Audio',
-//     'Modal',
-//     'TextInput',
-//     'Button',
-// 'Scene',
-//     'MediaContainer',
-//     'Video',
-// 'Scene',
-//     'Modal',
-//     'Text',
-//     'Button',
-// 'Scene',
-//     'MediaContainer',
-//     'Video',
-// 'Scene',
-//     'MediaContainer',
-//     'Audio',
-//     'Modal',
-//     'TextInput',
-//     'Button'
-
 const MEDIA_NODE_NAMES = ['MediaContainer', 'Audio', 'Video'];
 const FORM_NODES_NAMES = ['TextInput', 'Button'];
 const CLASSIFICATIONS = {
@@ -30,7 +7,21 @@ const CLASSIFICATIONS = {
     MIXED: 'MIXED'
 }
 
-function getSSComponentsFromDom() { return [...$('#entity-viewer strong')].map(i => i.innerText); }
+function getSSComponentsFromDom() { return (
+    [...$('#entity-viewer > ul > li')]
+        .map(sceneComponentInDom => ({
+            type: sceneComponentInDom.children[0].innerText,
+            properties: sceneComponentInDom.children[1]?.children && [...sceneComponentInDom.children[1].children].reduce((agg, curr) => {
+                const result = curr.innerText.match(/([\d\w]+): (.*)/);
+                if (result !== null) {
+                    const [, propName, propVal] = result;
+                    agg[propName] = propVal;
+                }
+                return agg;
+            }, {})
+        }))
+    );
+}
 function getSSNameFromDom() { return $('#entity-viewer > h4 > a')[0].innerText }
 function getSSFromDOMAsObj(SSComponentsFromDOM) { 
     const ssObjs = [];
@@ -39,12 +30,12 @@ function getSSFromDOMAsObj(SSComponentsFromDOM) {
         console.log('⚠️⚠️⚠️ No nodes detected. Did you highlight a SS node?');
     }
 
-    SSComponentsFromDOM.forEach(text => {
+    SSComponentsFromDOM.forEach(({ type: text, ...rest }) => {
         if (text.toLowerCase() === "scene") {
             ssObjs.push({});
         } else {
             const ssRef = ssObjs[ssObjs.length - 1];
-            ssRef[text] = true;
+            ssRef[text] = { ...rest };
         }
     });
     return ssObjs;
@@ -65,14 +56,11 @@ function addClassificationsToSSObjs(ssObjs) {
         };
     });
 }
-function validateSSObjsForMediaValidity(classifiedSSObjs) {
+function validateSSObjsForMediaValidity(classifiedSsObjs) {
     const errors = [];
 
-    console.log('classifiedSSObjs', classifiedSSObjs);
-
-    // optimization: use sets to reduce to unique values
     const classificationSet = new Set();
-    classifiedSSObjs.forEach(ssObj => classificationSet.add(ssObj.classification));
+    classifiedSsObjs.forEach(ssObj => classificationSet.add(ssObj.classification));
     const hasMixed = classificationSet.has(CLASSIFICATIONS.MIXED)
     const hasForm = classificationSet.has(CLASSIFICATIONS.FORM);
     const hasMedia = classificationSet.has(CLASSIFICATIONS.MEDIA);
@@ -84,23 +72,73 @@ function validateSSObjsForMediaValidity(classifiedSSObjs) {
     })
 
     if (hasMedia && hasMixed) {
-        errors.push('❌ - Scene Set has both Media and Mixed nodes');
+        errors.push('❌ [⏯🙈] Scene Set has both Media and Mixed nodes');
     }
 
     return errors;
 }
 
-function ssMediaHidableValidator() {
-    const ssObjs = getSSFromDOMAsObj(getSSComponentsFromDom());
-    const ssObjsMediaHidableErrors = validateSSObjsForMediaValidity(addClassificationsToSSObjs(ssObjs));
+function validateSSObjsForImageActionValidity(classifiedSsObjs) {
+    return classifiedSsObjs.map(ssObj => (
+        ssObj.classification === CLASSIFICATIONS.MEDIA
+            && (ssObj?.Image?.properties?.action?.indexOf('next') > -1)
+            && '❌ [📸⏭] Image Action is set to `next` but should be empty ('
+                + `${ssObj?.Image?.properties?.sourceProps?.match(/'reference': '([^']+)'/)[1]})`
+    ))
+    .filter(val => val !== false);
+}
+
+function ssMediaHidableValidator(classifiedSsObjs) {
+    const ssObjsMediaHidableErrors = validateSSObjsForMediaValidity(classifiedSsObjs);
 
     if (ssObjsMediaHidableErrors.length < 1) {
-        console.log(`✅ Media Hidable Valid (${getSSNameFromDom()})`);
+        console.log(`✅ [⏯🙈] Media Hidable Valid (${getSSNameFromDom()})`);
     } else {
-        console.log(`❌ Media Hidable INVALID (${getSSNameFromDom()})`, ssObjsMediaHidableErrors);
+        console.log(`❌ [⏯🙈] Media Hidable INVALID (${getSSNameFromDom()})`, ssObjsMediaHidableErrors);
     }
 
     return ssObjsMediaHidableErrors;
 }
 
-ssMediaHidableValidator();
+function ssImageActionValidator(classifiedSsObjs) {
+    const ssObjsImageActionErrors = validateSSObjsForImageActionValidity(classifiedSsObjs);
+
+    if (ssObjsImageActionErrors.length < 1) {
+        console.log(`✅ [📸⏭] Image Action Valid (${getSSNameFromDom()})`);
+    } else {
+        console.log(`❌ [📸⏭] Image Action INVALID (${getSSNameFromDom()})`, ssObjsImageActionErrors);
+    }
+
+    return ssObjsImageActionErrors;
+}
+
+function ssValidator() {
+    const ssObjs = getSSFromDOMAsObj(getSSComponentsFromDom());
+    const classifiedSsObjs = addClassificationsToSSObjs(ssObjs);
+
+    console.log('classifiedSsObjs', classifiedSsObjs);
+
+    // returns array of errors
+    return { errors: [
+        ...ssMediaHidableValidator(classifiedSsObjs),
+        ...ssImageActionValidator(classifiedSsObjs),
+    ]}
+}
+
+/**
+ * Press `v` to run the validation test
+ * 
+ * jenky, but at least it'll be quicker to run again
+ */
+document.onkeypress = function (e) {
+    e = e || window.event;
+    
+    if (e.keyCode === 118) {
+        ssValidator();
+    }
+};
+
+/**
+ * alternatively, just run the validator directly
+ */
+ssValidator();
