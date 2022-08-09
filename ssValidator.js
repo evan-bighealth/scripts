@@ -6,6 +6,9 @@
  * 3. It will automatically run on the selected SceneSet
  * 4. To run on subsequent SceneSets,
  *    click once on a new SceneSet to select it, then press "v".
+ * 
+ * // KNOWN ISSUE: Will only process one of each type of element per scene
+ * //              As such, it may only list one instance of an issue
  */
 
 const MEDIA_NODE_NAMES = ['MediaContainer', 'Audio', 'Video'];
