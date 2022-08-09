@@ -1,3 +1,13 @@
+/**
+ * INSTRUCTIONS TO RUN THIS
+ * 
+ * 1. Navigate to an SSG and click once on a SceneSet
+ * 2. Copy the full contents and paste into Chrome's DevTools
+ * 3. It will automatically run on the selected SceneSet
+ * 4. To run on subsequent SceneSets,
+ *    click once on a new SceneSet to select it, then press "v".
+ */
+
 const MEDIA_NODE_NAMES = ['MediaContainer', 'Audio', 'Video'];
 const FORM_NODES_NAMES = ['TextInput', 'Button'];
 const CLASSIFICATIONS = {
@@ -24,7 +34,7 @@ function getSSComponentsFromDom() { return (
 }
 function getSSNameFromDom() { return $('#entity-viewer > h4 > a')[0].innerText }
 function getSSFromDOMAsObj(SSComponentsFromDOM) { 
-    const ssObjs = [];
+    const sceneObjs = [];
 
     if (SSComponentsFromDOM.length < 1) {
         console.log('⚠️⚠️⚠️ No nodes detected. Did you highlight a SS node?');
@@ -32,35 +42,35 @@ function getSSFromDOMAsObj(SSComponentsFromDOM) {
 
     SSComponentsFromDOM.forEach(({ type: text, ...rest }) => {
         if (text.toLowerCase() === "scene") {
-            ssObjs.push({});
+            sceneObjs.push({});
         } else {
-            const ssRef = ssObjs[ssObjs.length - 1];
+            const ssRef = sceneObjs[sceneObjs.length - 1];
             ssRef[text] = { ...rest };
         }
     });
-    return ssObjs;
+    return sceneObjs;
 }
-function addClassificationsToSSObjs(ssObjs) {
-    return ssObjs.map(ssObj => {
+function addClassificationsToSSObjs(sceneObjs) {
+    return sceneObjs.map(sceneObj => {
         let hasMedia = false;
         let hasForm = false;
         // if any media element
-        if (MEDIA_NODE_NAMES.some(mediaKey => !!ssObj[mediaKey])) { hasMedia = true; }
-        if (FORM_NODES_NAMES.some(mediaKey => !!ssObj[mediaKey])) { hasForm = true; }
+        if (MEDIA_NODE_NAMES.some(mediaKey => !!sceneObj[mediaKey])) { hasMedia = true; }
+        if (FORM_NODES_NAMES.some(mediaKey => !!sceneObj[mediaKey])) { hasForm = true; }
         
         return {
-            ...ssObj,
+            ...sceneObj,
             classification: hasMedia && hasForm ? CLASSIFICATIONS.MIXED : (
                 hasMedia ? CLASSIFICATIONS.MEDIA : CLASSIFICATIONS.FORM
             )
         };
     });
 }
-function validateSSObjsForMediaValidity(classifiedSsObjs) {
+function validateSSObjsForMediaValidity(classifiedSceneObjs) {
     const errors = [];
 
     const classificationSet = new Set();
-    classifiedSsObjs.forEach(ssObj => classificationSet.add(ssObj.classification));
+    classifiedSceneObjs.forEach(sceneObj => classificationSet.add(sceneObj.classification));
     const hasMixed = classificationSet.has(CLASSIFICATIONS.MIXED)
     const hasForm = classificationSet.has(CLASSIFICATIONS.FORM);
     const hasMedia = classificationSet.has(CLASSIFICATIONS.MEDIA);
@@ -78,50 +88,78 @@ function validateSSObjsForMediaValidity(classifiedSsObjs) {
     return errors;
 }
 
-function validateSSObjsForImageActionValidity(classifiedSsObjs) {
-    return classifiedSsObjs.map(ssObj => (
-        ssObj.classification === CLASSIFICATIONS.MEDIA
-            && (ssObj?.Image?.properties?.action?.indexOf('next') > -1)
+function validateSSObjsForImageActionValidity(classifiedSceneObjs) {
+    return classifiedSceneObjs.map(sceneObj => (
+        sceneObj.classification === CLASSIFICATIONS.MEDIA
+            && (sceneObj?.Image?.properties?.action?.indexOf('next') > -1)
             && '❌ [📸⏭] Image Action is set to `next` but should be empty ('
-                + `${ssObj?.Image?.properties?.sourceProps?.match(/'reference': '([^']+)'/)[1]})`
+                + `${sceneObj?.Image?.properties?.sourceProps?.match(/'reference': '([^']+)'/)[1]})`
     ))
     .filter(val => val !== false);
 }
 
-function ssMediaHidableValidator(classifiedSsObjs) {
-    const ssObjsMediaHidableErrors = validateSSObjsForMediaValidity(classifiedSsObjs);
+const jumpToSsMethod = 'jump_to_sceneset_by_id';
+function validateSSObjsForJumpToSceneSetAlerter(classifiedSceneObjs) {
+    // if any "action" has "jump_to_sceneset_by_id", flag it
 
-    if (ssObjsMediaHidableErrors.length < 1) {
-        console.log(`✅ [⏯🙈] Media Hidable Valid (${getSSNameFromDom()})`);
-    } else {
-        console.log(`❌ [⏯🙈] Media Hidable INVALID (${getSSNameFromDom()})`, ssObjsMediaHidableErrors);
-    }
-
-    return ssObjsMediaHidableErrors;
+    return classifiedSceneObjs.map(sceneObj => (
+        // does every component in the scene NOT have jump_to_sceneset_by_id as an action?
+        Object.keys(sceneObj).map(sceneComponentKey => (
+            sceneObj[sceneComponentKey]?.properties?.action?.indexOf(jumpToSsMethod) > -1
+            && '⛳️ [⏭] jump_to_sceneset_by_id (target: '
+                + `${sceneObj[sceneComponentKey]?.properties?.action.match(/payload.*(\d{4})/)[1] })`
+        )).filter(val => val !== false)
+    ))
+    .filter(arr => arr.length > 0);
 }
 
-function ssImageActionValidator(classifiedSsObjs) {
-    const ssObjsImageActionErrors = validateSSObjsForImageActionValidity(classifiedSsObjs);
+function ssMediaHidableValidator(classifiedSceneObjs) {
+    const sceneObjsMediaHidableErrors = validateSSObjsForMediaValidity(classifiedSceneObjs);
 
-    if (ssObjsImageActionErrors.length < 1) {
-        console.log(`✅ [📸⏭] Image Action Valid (${getSSNameFromDom()})`);
+    if (sceneObjsMediaHidableErrors.length < 1) {
+        console.log(`✅ [⏯🙈] Media Hidable Valid (${getSSNameFromDom()})`);
     } else {
-        console.log(`❌ [📸⏭] Image Action INVALID (${getSSNameFromDom()})`, ssObjsImageActionErrors);
+        console.log(`❌ [⏯🙈] Media Hidable INVALID (${getSSNameFromDom()})`, sceneObjsMediaHidableErrors);
     }
 
-    return ssObjsImageActionErrors;
+    return sceneObjsMediaHidableErrors;
+}
+
+function ssImageActionValidator(classifiedSceneObjs) {
+    const sceneObjsImageActionErrors = validateSSObjsForImageActionValidity(classifiedSceneObjs);
+
+    if (sceneObjsImageActionErrors.length < 1) {
+        console.log(`✅ [📸⏭] Image Action Valid (${getSSNameFromDom()})`);
+    } else {
+        console.log(`❌ [📸⏭] Image Action INVALID (${getSSNameFromDom()})`, sceneObjsImageActionErrors);
+    }
+
+    return sceneObjsImageActionErrors;
+}
+
+function ssJumpToSceneSetAlerter(classifiedSceneObjs) {
+    const sceneObjsImageActionErrors = validateSSObjsForJumpToSceneSetAlerter(classifiedSceneObjs);
+
+    if (sceneObjsImageActionErrors.length < 1) {
+        console.log(`✅ [⏭] jump_to_sceneset not used (${getSSNameFromDom()})`);
+    } else {
+        console.log(`👀 [⏭] jump_to_sceneset used (${getSSNameFromDom()}). Verify the destination SS ID`, sceneObjsImageActionErrors);
+    }
+
+    return sceneObjsImageActionErrors;
 }
 
 function ssValidator() {
-    const ssObjs = getSSFromDOMAsObj(getSSComponentsFromDom());
-    const classifiedSsObjs = addClassificationsToSSObjs(ssObjs);
+    const sceneObjs = getSSFromDOMAsObj(getSSComponentsFromDom());
+    const classifiedSceneObjs = addClassificationsToSSObjs(sceneObjs);
 
-    console.log('classifiedSsObjs', classifiedSsObjs);
+    console.log('classifiedSceneObjs', classifiedSceneObjs);
 
     // returns array of errors
     return { errors: [
-        ...ssMediaHidableValidator(classifiedSsObjs),
-        ...ssImageActionValidator(classifiedSsObjs),
+        ...ssMediaHidableValidator(classifiedSceneObjs),
+        ...ssImageActionValidator(classifiedSceneObjs),
+        ...ssJumpToSceneSetAlerter(classifiedSceneObjs),
     ]}
 }
 
