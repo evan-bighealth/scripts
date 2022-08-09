@@ -1,6 +1,9 @@
 /**
  * INSTRUCTIONS TO RUN THIS
  * 
+ * This is intended to be used when renaming items copied over from one SSG to another.
+ * e.g. renmaing TC_rapidpractice_100PercentOffer_copy_e41c8318f321457c864af8099ea3059f to be MDD_TC_rapidpractice_100PercentOffer
+ * 
  * 1. Navigate to an SSG and double click on a SceneSet or Edge that has _copy_<hash> in the reference
  * 2. Copy the full contents of the script and paste into Chrome's DevTools
  * 3. Run
