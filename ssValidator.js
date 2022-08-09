@@ -2,7 +2,7 @@
  * INSTRUCTIONS TO RUN THIS
  * 
  * 1. Navigate to an SSG and click once on a SceneSet
- * 2. Copy the full contents and paste into Chrome's DevTools
+ * 2. Copy the full contents of the script and paste into Chrome's DevTools
  * 3. It will automatically run on the selected SceneSet
  * 4. To run on subsequent SceneSets,
  *    click once on a new SceneSet to select it, then press "v".
